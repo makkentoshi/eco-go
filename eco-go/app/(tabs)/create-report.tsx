@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,16 @@ import {
   TextInput,
   Image,
   Platform,
+  Linking,
+  Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
+// import MapView, * as reactNativeMaps from 'react-native-maps'; // Import MapView
+import { useNavigation } from '@react-navigation/native';
 
 interface LocationState {
   latitude: number | null;
@@ -23,19 +27,18 @@ interface LocationState {
 interface AnalysisResult {
   estimated_weight_kg: number;
   co2_emission_kg: number;
-  recyclability_percentage: number;
+  recyclable_percentage: number;
   dominant_waste_types: string[];
 }
 
 const initialAnalysisResult = {
-    estimated_weight_kg: 0,
-    co2_emission_kg: 0,
-    recyclability_percentage: 0,
-    dominant_waste_types: []
+  estimated_weight_kg: 0,
+  co2_emission_kg: 0,
+  recyclable_percentage: 0,
+  dominant_waste_types: []
 }
 
 export default function CreateReportScreen() {
-  const [selectedType, setSelectedType] = useState('');
   const [weight, setWeight] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<string | null>(null);
@@ -44,11 +47,12 @@ export default function CreateReportScreen() {
   const [recyclablePercentage, setRecyclablePercentage] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult>(initialAnalysisResult);
   const [isLoading, setIsLoading] = useState(false);
-    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [isMapModalVisible, setIsMapModalVisible] = useState(false);
 
 
   const router = useRouter();
+  const navigation = useNavigation();
 
   const trashTypes = [
     { id: 'plastic', name: 'Plastic', icon: '🥤' },
@@ -58,15 +62,16 @@ export default function CreateReportScreen() {
     { id: 'organic', name: 'Organic', icon: '🍎' },
   ];
 
-  useEffect(() => {
-    if(analysisResult){
-      setCo2(analysisResult.co2_emission_kg);
-      setRecyclablePercentage(analysisResult.recyclability_percentage);
-      if(analysisResult.estimated_weight_kg)
-        setWeight(analysisResult.estimated_weight_kg.toString())
-    }
 
-},[analysisResult])
+  useEffect(() => {
+    if (analysisResult) {
+      setCo2(analysisResult.co2_emission_kg || 0);
+      setRecyclablePercentage(analysisResult.recyclable_percentage || 0); // Fix the typo here
+      setWeight(analysisResult.estimated_weight_kg ? analysisResult.estimated_weight_kg.toString() : '0');
+    }
+  }, [analysisResult]);
+
+
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
@@ -75,22 +80,20 @@ export default function CreateReportScreen() {
         setImage(URL.createObjectURL(file)); // Отображаем выбранное изображение
       }
     };
+
+    const openMapModal = useCallback(() => {
+      setIsMapModalVisible(true);
+    }, []);
   
-
-
-  const getLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Permission to access location was denied');
-      return;
-    }
-
-    const location = await Location.getCurrentPositionAsync({});
-    setLocation({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    });
-  };
+    const closeMapModal = useCallback(() => {
+      setIsMapModalVisible(false);
+    }, []);
+  
+    const handleMapLocationSelect = useCallback((newLocation: LocationState) => {
+      setLocation(newLocation);
+      closeMapModal();
+    }, [closeMapModal]);
+  
 
   const createFormData = (imageFile: File | null, location: LocationState, description: string): FormData => {
       const formData = new FormData();
@@ -138,11 +141,6 @@ export default function CreateReportScreen() {
         setAnalysisResult(result);
 
 
-      if (response.ok) {
-
-      } else {
-        alert('Error submitting report: ' + result.error);
-      }
     } catch (error:any) {
       console.error('Error:', error);
       alert('An error occurred while submitting the report.' + error.message);
@@ -160,12 +158,26 @@ export default function CreateReportScreen() {
         return analysisResult?.dominant_waste_types?.includes(type);
       };
 
-      const getTypeStyle = (type: string) => {
-        return [
-          styles.typeItem,
-          isTypeDetected(type) ? styles.typeItemDetected : styles.typeItemUndetected,
-        ];
+    const getTypeStyle = (type: string) => {
+      return [
+        styles.typeItem,
+        isTypeDetected(type) ? styles.typeItemDetected : styles.typeItemUndetected,
+      ];
+    };
+
+      const formatNumber = (num: number): string => {
+        return num.toLocaleString('en-US');
       };
+      
+
+ // Conditional import of MapView
+ let MapViewComponent: React.ComponentType<any> | null = null;
+ let MarkerComponent: React.ComponentType<any> | null = null;
+
+ if (Platform.OS !== 'web') {
+   MapViewComponent = require('react-native-maps').default;
+   MarkerComponent = require('react-native-maps').Marker;
+ }
 
 
   return (
@@ -203,7 +215,7 @@ export default function CreateReportScreen() {
 
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Location</Text>
-          <TouchableOpacity style={styles.locationButton} activeOpacity={0.7} onPress={getLocation} disabled={isLoading}>
+          <TouchableOpacity style={styles.locationButton} activeOpacity={0.7} onPress={openMapModal} disabled={isLoading}>
             <MaterialCommunityIcons name="map-marker" size={24} color="#34D399" />
             <Text style={styles.locationText}>
               {location.latitude ? `${location.latitude}, ${location.longitude}` : 'Select Location'}
@@ -213,11 +225,11 @@ export default function CreateReportScreen() {
 
           <Text style={styles.sectionTitle}>Trash Type</Text>
            <View style={styles.typeContainer}>
-                {trashTypes.map(type => (
-                  <View key={type.id} style={getTypeStyle(type.id)}>
-                  <Text style={styles.typeText}>{type.icon} {type.name}</Text>
-                  </View>
-                ))}
+           {trashTypes.map(type => (
+            <View key={type.id} style={getTypeStyle(type.id)}>
+                <Text style={styles.typeText}>{type.icon} {type.name}</Text>
+            </View>
+        ))}
           </View>
 
 
@@ -245,13 +257,18 @@ export default function CreateReportScreen() {
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <MaterialCommunityIcons name="molecule-co2" size={24} color="#34D399" />
-              <Text style={styles.statValue}>{co2} kg</Text>
+              <Text style={styles.statValue}>{formatNumber(co2)} kg</Text>
               <Text style={styles.statLabel}>CO₂ Impact</Text>
             </View>
             <View style={styles.statCard}>
               <MaterialCommunityIcons name="recycle" size={24} color="#34D399" />
-              <Text style={styles.statValue}>{recyclablePercentage}%</Text>
+              <Text style={styles.statValue}>{formatNumber(recyclablePercentage)}%</Text>
               <Text style={styles.statLabel}>Recyclable</Text>
+            </View>
+            <View style={styles.statCard}>
+                <MaterialCommunityIcons name="weight" size={24} color="#34D399" />
+                <Text style={styles.statValue}>{formatNumber(Number(weight))} kg</Text>
+                <Text style={styles.statLabel}>Waste Weight</Text>
             </View>
           </View>
         </View>
@@ -266,6 +283,50 @@ export default function CreateReportScreen() {
               )}
           </TouchableOpacity>
       </View>
+
+        {/* Map Modal */}
+        <Modal visible={isMapModalVisible} animationType="slide">
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.mapHeader}>
+              <TouchableOpacity onPress={closeMapModal} style={styles.backButton}>
+                <MaterialCommunityIcons name="arrow-left" size={24} color="#1F2937" />
+              </TouchableOpacity>
+              <Text style={styles.mapTitle}>Select Location</Text>
+            </View>
+            <MapView
+              style={{ flex: 1 }}
+              initialRegion={{
+                latitude: location.latitude || 37.78825,
+                longitude: location.longitude || -122.4324,
+                latitudeDelta: 0.0922,
+                longitudeDelta: 0.0421,
+              }}
+              onPress={(event) => {
+                const { latitude, longitude } = event.nativeEvent.coordinate;
+                handleMapLocationSelect({ latitude, longitude });
+              }}
+            >
+              {location.latitude && location.longitude && (
+                <reactNativeMaps.Marker coordinate={{ latitude: location.latitude, longitude: location.longitude }} />
+              )}
+            </MapView>
+            <View style={styles.mapFooter}>
+              <TouchableOpacity style={styles.mapButton} onPress={closeMapModal}>
+                <Text style={styles.mapButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.mapButton}
+                onPress={() => {
+                  if (location.latitude && location.longitude) {
+                    handleMapLocationSelect(location);
+                  }
+                }}
+              >
+                <Text style={styles.mapButtonText}>Select</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </Modal>
     </SafeAreaView>
   );
 }
@@ -452,5 +513,54 @@ const styles = StyleSheet.create({
         borderColor: '#E5E7EB',
         color: '#6B7280',
 
+      },
+      dominantTypeItem: {
+        backgroundColor: '#ECFDF5',
+        padding: 8,
+        borderRadius: 8,
+        marginRight: 8,
+        marginBottom: 8,
+      },
+      dominantTypeText: {
+        color: '#34D399',
+        fontWeight: '600',
+      },
+
+      mapHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        backgroundColor: '#F9FAFB',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+      },
+      backButton: {
+        padding: 8,
+      },
+      mapTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1F2937',
+        marginLeft: 16,
+      },
+      mapFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        padding: 16,
+        backgroundColor: '#F9FAFB',
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB',
+      },
+      mapButton: {
+        backgroundColor: '#34D399',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+      },
+      mapButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
       },
   });
