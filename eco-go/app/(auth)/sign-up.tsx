@@ -131,6 +131,10 @@ export default function SignUpScreen() {
       >
         Continue
       </Button>
+      <Button
+        onPress={() => router.push("/(tabs)")} variant="ghost">> 
+        Tabs
+      </Button>
       {errors.map((error) => (
         <ThemedText key={error.longMessage} style={{ color: "red" }}>
           {error.longMessage}

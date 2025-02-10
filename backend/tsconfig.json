@@ -1,11 +1,11 @@
 {
-    "compilerOptions": {
-      "outDir": "./dist",        // Куда сохранять скомпилированные файлы
-      "rootDir": "./src",        // Где хранить исходники TypeScript
-      "module": "CommonJS",      // Node.js использует CommonJS
-      "target": "ES6",           // Компиляция в ES6
-      "strict": true,            // Включает строгую типизацию
-      "esModuleInterop": true    // Позволяет импортировать модули ES6
-    }
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "module": "CommonJS",
+    "target": "ES6",
+    "strict": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node" // ИЛИ "classic"
   }
-  
+}

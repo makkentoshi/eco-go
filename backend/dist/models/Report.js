@@ -10,10 +10,10 @@ const ReportSchema = new mongoose_1.default.Schema({
         latitude: { type: Number, required: true },
         longitude: { type: Number, required: true }
     },
-    trashType: { type: String, enum: ['glass', 'plastic', 'paper', 'metal', 'organic'], required: true },
-    kg: { type: Number, required: true },
-    CO2Emissions: { type: Number, required: true }, // Выбросы CO2
-    recyclablePercentage: { type: Number, required: true }, // Процент переработки
+    trashType: { type: String, required: true },
+    kg: { type: Number, required: false, default: 0 },
+    CO2Emissions: { type: Number, required: false, default: 0 }, // Выбросы CO2
+    recyclablePercentage: { type: Number, required: false, default: 0 }, // Процент переработки
     description: { type: String },
     createdAt: { type: Date, default: Date.now }
 });

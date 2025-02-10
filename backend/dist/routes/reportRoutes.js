@@ -16,39 +16,53 @@ const express_1 = __importDefault(require("express"));
 const multer_1 = __importDefault(require("multer"));
 const imageProcessing_1 = require("../imageProcessing");
 const Report_1 = __importDefault(require("../models/Report"));
+const path_1 = __importDefault(require("path"));
 const router = express_1.default.Router();
-const upload = (0, multer_1.default)({ dest: 'uploads/' });
+const storage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path_1.default.extname(file.originalname);
+        cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    }
+});
+const upload = (0, multer_1.default)({ storage: storage });
 router.post('/', upload.single('photo'), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { file, body } = req;
         if (!file) {
             res.status(400).json({ error: 'No file uploaded' });
-            return; // Завершаем выполнение функции
+            return;
         }
-        const { latitude, longitude, trashType, kg, description } = body;
-        if (!latitude || !longitude || !kg) {
-            res.status(400).json({ error: 'Missing required fields: latitude, longitude, or kg' });
-            return; // Завершаем выполнение функции
+        const { latitude, longitude, description } = body;
+        if (!latitude || !longitude) {
+            res.status(400).json({ error: 'Missing required fields: latitude or longitude' });
+            return;
         }
-        const imageUrl = file.path;
-        const aiAnalysis = yield (0, imageProcessing_1.processImage)(imageUrl);
-        if (!aiAnalysis) {
-            res.status(500).json({ error: 'Failed to analyze the image' });
-            return; // Завершаем выполнение функции
-        }
-        const analysisResult = JSON.parse(aiAnalysis);
-        const { type, co2, recyclablePercentage } = analysisResult;
+        // Accessing file path correctly
+        const absolutePath = path_1.default.resolve(file.path);
+        const aiAnalysis = yield (0, imageProcessing_1.processImage)(absolutePath);
+        const { estimated_weight_kg, co2_emission_kg, recyclability_percentage, dominant_waste_types } = aiAnalysis;
+        // Determine trash type (using the first dominant type)
+        const trashType = dominant_waste_types && dominant_waste_types.length > 0 ? dominant_waste_types[0] || 'unknown' : 'unknown';
         const newReport = new Report_1.default({
-            photo: imageUrl,
+            photo: absolutePath,
             location: { latitude: parseFloat(latitude), longitude: parseFloat(longitude) },
-            trashType: type || trashType,
-            kg: parseFloat(kg),
-            CO2Emissions: co2 || 0,
-            recyclablePercentage: recyclablePercentage || 0,
+            trashType: trashType,
+            kg: estimated_weight_kg || 0,
+            CO2Emissions: co2_emission_kg || 0,
+            recyclablePercentage: recyclability_percentage || 0,
             description: description || '',
         });
         yield newReport.save();
-        res.status(200).json(newReport);
+        res.status(200).json({
+            kg: estimated_weight_kg || 0,
+            CO2Emissions: co2_emission_kg || 0,
+            recyclablePercentage: recyclability_percentage || 0,
+            dominant_waste_types: dominant_waste_types || [],
+        });
     }
     catch (error) {
         console.error('Error creating report:', error);

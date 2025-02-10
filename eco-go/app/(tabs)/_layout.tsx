@@ -1,6 +1,10 @@
 import React from 'react';
 import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
-import Animated, { withSpring } from 'react-native-reanimated';
+import Animated, { 
+  withSpring,
+  useAnimatedStyle,
+  withTiming
+} from 'react-native-reanimated';
 import { Tabs } from 'expo-router';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -9,12 +13,25 @@ import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+const springConfig = {
+  mass: 1,
+  damping: 15,
+  stiffness: 200,
+};
+
 const TabButton = ({ accessibilityState, onPress, children }: any) => {
-  const focused = accessibilityState?.selected;
-  const scale = withSpring(focused ? 1.2 : 1);
+  const focused = accessibilityState?.selected ?? false;
+  
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{
+        scale: withSpring(focused ? 1.2 : 1, springConfig)
+      }]
+    };
+  });
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={[animatedStyle]}>
       <View style={[styles.tabButton, focused && styles.tabButtonFocused]}>
         <TouchableOpacity onPress={onPress}>
           {children}
@@ -54,7 +71,7 @@ export default function TabNavigator() {
         
         options={{
           title: ' ',
-          tabBarButton: (props) => <TabButton {...props} />,
+          tabBarButton: (props) => props ? <TabButton {...props} /> : null,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="trophy" size={size} color={color} />
           ),
@@ -66,7 +83,7 @@ export default function TabNavigator() {
         
         options={{
           title: ' ',
-          tabBarButton: (props) => <TabButton {...props} />,
+          tabBarButton: (props) => props ? <TabButton {...props} /> : null,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="video-box" size={size} color={color} />
           ),
@@ -82,7 +99,14 @@ export default function TabNavigator() {
                 <Animated.View
                   style={[
                     styles.createReportButton,
-                    { transform: [{ scale: withSpring(props.accessibilityState?.selected ? 1.1 : 1) }] },
+                    useAnimatedStyle(() => ({
+                      transform: [{
+                        scale: withSpring(
+                          props.accessibilityState?.selected ?? false ? 1.1 : 1,
+                          springConfig
+                        )
+                      }]
+                    }))
                   ]}
                 >
                   <MaterialCommunityIcons name="plus" size={32} color="white" />
@@ -97,7 +121,7 @@ export default function TabNavigator() {
         name="trash-map"
         options={{
           title: ' ',
-          tabBarButton: (props) => <TabButton {...props} />,
+          tabBarButton: (props) => props ? <TabButton {...props} /> : null,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="map-marker" size={size} color={color} />
           ),
@@ -107,7 +131,7 @@ export default function TabNavigator() {
         name="profile"
         options={{
           title: ' ',
-          tabBarButton: (props) => <TabButton {...props} />,
+          tabBarButton: (props) => props ? <TabButton {...props} /> : null,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account-circle" size={size} color={color} />
           ),
@@ -122,7 +146,7 @@ export default function TabNavigator() {
         name="settings"
         options={{
           title: ' ',
-          tabBarButton: (props) => <TabButton {...props} />,
+          tabBarButton: (props) => props ? <TabButton {...props} /> : null,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="cog" size={size} color={color} />
           ),
