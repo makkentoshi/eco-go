@@ -152,7 +152,17 @@ export default function TabNavigator() {
           ),
         }}
       />
+{/* 
+<Tabs.Screen
+    name="loadscreen"
+    options={{
+      tabBarButton: () => null, // Скрываем из нижнего меню
+      headerShown: false, // Скрываем хедер
+      
+    }}
+  /> */}
     </Tabs>
+    
     
   );
 }

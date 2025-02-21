@@ -16,8 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-// import MapView, * as reactNativeMaps from 'react-native-maps'; // Import MapView
-import { useNavigation } from '@react-navigation/native';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+import { Marker } from 'react-native-maps';
+
 
 interface LocationState {
   latitude: number | null;
@@ -42,7 +43,8 @@ export default function CreateReportScreen() {
   const [weight, setWeight] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<string | null>(null);
-  const [location, setLocation] = useState<LocationState>({ latitude: null, longitude: null });
+  const [location, setLocation] = useState({ latitude: null, longitude: null });
+
   const [co2, setCo2] = useState(0);
   const [recyclablePercentage, setRecyclablePercentage] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult>(initialAnalysisResult);
@@ -51,16 +53,23 @@ export default function CreateReportScreen() {
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
 
 
-  const router = useRouter();
-  const navigation = useNavigation();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(location);
 
-  const trashTypes = [
-    { id: 'plastic', name: 'Plastic', icon: '🥤' },
-    { id: 'paper', name: 'Paper', icon: '📄' },
-    { id: 'glass', name: 'Glass', icon: '🍾' },
-    { id: 'metal', name: 'Metal', icon: '🥫' },
-    { id: 'organic', name: 'Organic', icon: '🍎' },
-  ];
+
+  const router = useRouter();
+
+
+    // const trashTypes = [
+  //   { id: 'plastic', name: 'Plastic', icon: '🥤' },
+  //   { id: 'paper', name: 'Paper', icon: '📄' },
+  //   { id: 'glass', name: 'Glass', icon: '🍾' },
+  //   { id: 'metal', name: 'Metal', icon: '🥫' },
+  //   { id: 'organic', name: 'Organic', icon: '🍎' },
+  // ];
+
+
+  const BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
 
 
   useEffect(() => {
@@ -73,26 +82,48 @@ export default function CreateReportScreen() {
 
 
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file) {
-        setSelectedImageFile(file);
-        setImage(URL.createObjectURL(file)); // Отображаем выбранное изображение
-      }
-    };
+  const handleImageChange = async () => {
+    if (Platform.OS === 'web') {
+      const fileInput = document.getElementById('image-upload') as HTMLInputElement;
+      fileInput.click();
+    } else {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaType.Images, // ✅ исправлено
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
 
-    const openMapModal = useCallback(() => {
-      setIsMapModalVisible(true);
-    }, []);
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+      }
+    }
+  };
+
+
+  const handleMapPress = (event) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setSelectedLocation({ latitude, longitude });
+  };
+
+  const confirmLocation = () => {
+    setLocation(selectedLocation);
+    setModalVisible(false);
+  };
+
+
+    // const openMapModal = useCallback(() => {
+    //   setIsMapModalVisible(true);
+    // }, []);
   
-    const closeMapModal = useCallback(() => {
-      setIsMapModalVisible(false);
-    }, []);
+    // const closeMapModal = useCallback(() => {
+    //   setIsMapModalVisible(false);
+    // }, []);
   
-    const handleMapLocationSelect = useCallback((newLocation: LocationState) => {
-      setLocation(newLocation);
-      closeMapModal();
-    }, [closeMapModal]);
+    // const handleMapLocationSelect = useCallback((newLocation: LocationState) => {
+    //   setLocation(newLocation);
+    //   closeMapModal();
+    // }, [closeMapModal]);
   
 
   const createFormData = (imageFile: File | null, location: LocationState, description: string): FormData => {
@@ -125,45 +156,28 @@ export default function CreateReportScreen() {
 
     try {
       const formData = createFormData(selectedImageFile, location, description);
-      const response = await fetch('http://localhost:5000/api/reports', {
+      const response = await fetch(`${BASE_URL}/api/reports`, {
         method: 'POST',
         body: formData,
       });
-
+  
       if (!response.ok) {
-            // Log the error response
-            const errorText = await response.text();
-            console.error(`Server responded with error ${response.status}: ${errorText}`);
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result = await response.json();
-        console.log("Backend response", result);
-        setAnalysisResult(result);
-
-
-    } catch (error:any) {
+        const errorText = await response.text();
+        console.error(`Server responded with error ${response.status}: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const result = await response.json();
+      console.log('Backend response', result);
+      router.push('../profile/reports');
+      setAnalysisResult(result);
+    } catch (error: any) {
       console.error('Error:', error);
-      alert('An error occurred while submitting the report.' + error.message);
+      alert('An error occurred while submitting the report: ' + error.message);
     } finally {
       setIsLoading(false); // Скрываем индикатор загрузки
     }
   };
-
-  const getIconForType = (type: string) => {
-        const trashType = trashTypes.find(item => item.id === type);
-        return trashType ? trashType.icon : '❓'; // Default icon if not found
-      };
-
-    const isTypeDetected = (type: string) => {
-        return analysisResult?.dominant_waste_types?.includes(type);
-      };
-
-    const getTypeStyle = (type: string) => {
-      return [
-        styles.typeItem,
-        isTypeDetected(type) ? styles.typeItemDetected : styles.typeItemUndetected,
-      ];
-    };
 
       const formatNumber = (num: number): string => {
         return num.toLocaleString('en-US');
@@ -174,10 +188,6 @@ export default function CreateReportScreen() {
  let MapViewComponent: React.ComponentType<any> | null = null;
  let MarkerComponent: React.ComponentType<any> | null = null;
 
- if (Platform.OS !== 'web') {
-   MapViewComponent = require('react-native-maps').default;
-   MarkerComponent = require('react-native-maps').Marker;
- }
 
 
   return (
@@ -191,57 +201,94 @@ export default function CreateReportScreen() {
         </View>
 
         <View style={styles.imageSection}>
-               {/* Новая реализация выбора файла */}
+          {Platform.OS === 'web' ? (
+            <>
               <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  id="image-upload"
-                  onChange={handleImageChange}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="image-upload"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    setImage(URL.createObjectURL(file));
+                  }
+                }}
               />
               <label htmlFor="image-upload">
-                  <View style={styles.uploadButton}>
-                      {image ? (
-                          <Image source={{ uri: image }} style={styles.uploadedImage} />
-                      ) : (
-                          <>
-                              <MaterialCommunityIcons name="camera" size={32} color="#34D399" />
-                              <Text style={styles.uploadText}>Add Photo</Text>
-                          </>
-                      )}
-                  </View>
+                <View style={styles.uploadButton}>
+                  {image ? (
+                    <Image source={{ uri: image }} style={styles.uploadedImage} />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="camera" size={32} color="#34D399" />
+                      <Text style={styles.uploadText}>Add Photo</Text>
+                    </>
+                  )}
+                </View>
               </label>
+            </>
+          ) : (
+            <TouchableOpacity onPress={handleImageChange}>
+              <View style={styles.uploadButton}>
+                {image ? (
+                  <Image source={{ uri: image }} style={styles.uploadedImage} />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="camera" size={32} color="#34D399" />
+                    <Text style={styles.uploadText}>Add Photo</Text>
+                  </>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Location</Text>
-          <TouchableOpacity style={styles.locationButton} activeOpacity={0.7} onPress={openMapModal} disabled={isLoading}>
-            <MaterialCommunityIcons name="map-marker" size={24} color="#34D399" />
-            <Text style={styles.locationText}>
-              {location.latitude ? `${location.latitude}, ${location.longitude}` : 'Select Location'}
-            </Text>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
-          </TouchableOpacity>
+  <TouchableOpacity 
+        style={styles.locationButton} 
+        activeOpacity={0.7} 
+        onPress={() => setModalVisible(true)}
+      >
+        <MaterialCommunityIcons name="map-marker" size={24} color="#34D399" />
+        <Text style={styles.locationText}>
+          {location.latitude ? `${location.latitude}, ${location.longitude}` : 'Select Location'}
+        </Text>
+        <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
+      </TouchableOpacity>
 
-          <Text style={styles.sectionTitle}>Trash Type</Text>
-           <View style={styles.typeContainer}>
-           {trashTypes.map(type => (
-            <View key={type.id} style={getTypeStyle(type.id)}>
-                <Text style={styles.typeText}>{type.icon} {type.name}</Text>
-            </View>
-        ))}
+      <Modal visible={modalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalContainer}>
+          <MapView
+            style={styles.map}
+            provider={PROVIDER_GOOGLE} // Используем Google Maps
+            initialRegion={{
+              latitude: location.latitude || 48.8566, // Париж по умолчанию
+              longitude: location.longitude || 2.3522,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            }}
+            onPress={handleMapPress} // Выбор точки на карте
+          >
+          {selectedLocation.latitude !== null && selectedLocation.longitude !== null && (
+  <Marker coordinate={{ latitude: selectedLocation.latitude, longitude: selectedLocation.longitude }} />
+)}
+
+          </MapView>
+
+          {/* Кнопки "Подтвердить" и "Отмена" */}
+          <View style={styles.buttonsContainer}>
+            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelButton}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={confirmLocation} style={styles.confirmButton}>
+              <Text style={styles.buttonText}>Confirm</Text>
+            </TouchableOpacity>
           </View>
-
-
-          <Text style={styles.sectionTitle}>Estimated Weight (kg)</Text>
-          <TextInput
-            style={styles.input}
-            value={weight}
-            // onChangeText={setWeight}
-            keyboardType="numeric"
-            placeholder="Weight"
-            editable={false}
-          />
+        </View>
+      </Modal>
+  
 
           <Text style={styles.sectionTitle}>Description</Text>
           <TextInput
@@ -254,23 +301,7 @@ export default function CreateReportScreen() {
             editable={!isLoading}
           />
 
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <MaterialCommunityIcons name="molecule-co2" size={24} color="#34D399" />
-              <Text style={styles.statValue}>{formatNumber(co2)} kg</Text>
-              <Text style={styles.statLabel}>CO₂ Impact</Text>
-            </View>
-            <View style={styles.statCard}>
-              <MaterialCommunityIcons name="recycle" size={24} color="#34D399" />
-              <Text style={styles.statValue}>{formatNumber(recyclablePercentage)}%</Text>
-              <Text style={styles.statLabel}>Recyclable</Text>
-            </View>
-            <View style={styles.statCard}>
-                <MaterialCommunityIcons name="weight" size={24} color="#34D399" />
-                <Text style={styles.statValue}>{formatNumber(Number(weight))} kg</Text>
-                <Text style={styles.statLabel}>Waste Weight</Text>
-            </View>
-          </View>
+    
         </View>
       </ScrollView>
 
@@ -283,50 +314,6 @@ export default function CreateReportScreen() {
               )}
           </TouchableOpacity>
       </View>
-
-        {/* Map Modal */}
-        <Modal visible={isMapModalVisible} animationType="slide">
-          <SafeAreaView style={{ flex: 1 }}>
-            <View style={styles.mapHeader}>
-              <TouchableOpacity onPress={closeMapModal} style={styles.backButton}>
-                <MaterialCommunityIcons name="arrow-left" size={24} color="#1F2937" />
-              </TouchableOpacity>
-              <Text style={styles.mapTitle}>Select Location</Text>
-            </View>
-            <MapView
-              style={{ flex: 1 }}
-              initialRegion={{
-                latitude: location.latitude || 37.78825,
-                longitude: location.longitude || -122.4324,
-                latitudeDelta: 0.0922,
-                longitudeDelta: 0.0421,
-              }}
-              onPress={(event) => {
-                const { latitude, longitude } = event.nativeEvent.coordinate;
-                handleMapLocationSelect({ latitude, longitude });
-              }}
-            >
-              {location.latitude && location.longitude && (
-                <reactNativeMaps.Marker coordinate={{ latitude: location.latitude, longitude: location.longitude }} />
-              )}
-            </MapView>
-            <View style={styles.mapFooter}>
-              <TouchableOpacity style={styles.mapButton} onPress={closeMapModal}>
-                <Text style={styles.mapButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.mapButton}
-                onPress={() => {
-                  if (location.latitude && location.longitude) {
-                    handleMapLocationSelect(location);
-                  }
-                }}
-              >
-                <Text style={styles.mapButtonText}>Select</Text>
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </Modal>
     </SafeAreaView>
   );
 }
@@ -392,15 +379,54 @@ const styles = StyleSheet.create({
     locationButton: {
       flexDirection: 'row',
       alignItems: 'center',
+      padding: 12,
+      borderWidth: 1,
+      borderColor: '#D1D5DB',
+      borderRadius: 8,
       backgroundColor: '#F9FAFB',
-      padding: 16,
-      borderRadius: 12,
     },
     locationText: {
       flex: 1,
       marginLeft: 8,
       fontSize: 16,
       color: '#6B7280',
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: 'white',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 50,
+    },
+    map: {
+      width: '100%',
+      height: '80%',
+    },
+    buttonsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      width: '100%',
+      padding: 20,
+    },
+    cancelButton: {
+      padding: 10,
+      backgroundColor: '#EF4444',
+      borderRadius: 8,
+      flex: 1,
+      alignItems: 'center',
+      marginRight: 10,
+    },
+    confirmButton: {
+      padding: 10,
+      backgroundColor: '#34D399',
+      borderRadius: 8,
+      flex: 1,
+      alignItems: 'center',
+      marginLeft: 10,
+    },
+    buttonText: {
+      color: 'white',
+      fontWeight: 'bold',
     },
     typeScroll: {
       marginHorizontal: -20,
@@ -563,4 +589,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
       },
+      mapModal: { flex: 1, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center' },
+      closeMapButton: { backgroundColor: '#34D399', padding: 15, borderRadius: 10, marginTop: 20 },
+      closeMapButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
   });

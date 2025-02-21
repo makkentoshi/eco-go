@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,19 +23,25 @@ export default function MediaScreen() {
     fetchVideos();
   }, []);
 
-  const fetchVideos = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/videos'); // Укажи URL API
-      const data = await response.json();
-      console.log("data", data);
-      setVideos(data);
-    } catch (error) {
-      console.error('Error fetching videos:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const API_URL =
+  Platform.OS === 'web'
+    ? 'http://localhost:5000/api/videos' 
+    : Platform.OS === 'ios'
+    ? 'http://127.0.0.1:5000/api/videos' // iOS-симулятор
+    : 'http://10.0.2.2:5000/api/videos'; // Android-эмулятор
 
+const fetchVideos = async () => {
+  try {
+    const response = await fetch(API_URL);
+    const data = await response.json();
+    console.log("data", data);
+    setVideos(data);
+  } catch (error) {
+    console.error('Error fetching videos:', error);
+  } finally {
+    setLoading(false);
+  }
+};
   const categories = [
     { id: 'all', name: 'All', icon: 'play-circle' },
     { id: 'recycling', name: 'Recycling', icon: 'recycle' },

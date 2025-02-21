@@ -37,15 +37,59 @@ export default function ProfileScreen() {
     },
   ];
 
+  const recentReports = {
+    total: 45,
+    pending: [
+      { id: 1, location: 'Central Park', date: '2024-02-15', type: 'Plastic' },
+      { id: 2, location: 'Beach Area', date: '2024-02-14', type: 'Glass' },
+    ],
+    done: [
+      { id: 3, location: 'River Bank', date: '2024-02-13', type: 'Paper' },
+      { id: 4, location: 'City Center', date: '2024-02-12', type: 'Metal' },
+    ],
+    canceled: [
+      { id: 5, location: 'Forest Trail', date: '2024-02-11', type: 'Organic' },
+    ],
+  };
+
   const stats = {
     points: 1250,
-    photos: 45,
-    impact: '125kg',
     group: {
       name: 'MIT Institute',
       rank: 3,
       totalMembers: 150,
     },
+  };
+
+  const renderReportCard = (report, status) => {
+    const statusColors = {
+      pending: { bg: '#FEF3C7', text: '#D97706', icon: 'clock-outline' },
+      done: { bg: '#ECFDF5', text: '#059669', icon: 'check-circle-outline' },
+      canceled: { bg: '#FEE2E2', text: '#DC2626', icon: 'close-circle-outline' },
+    };
+    const color = statusColors[status];
+
+    return (
+      <View key={report.id} style={styles.reportCard}>
+        <View style={styles.reportHeader}>
+          <MaterialCommunityIcons name={color.icon} size={24} color={color.text} />
+          <Text style={[styles.reportStatus, { color: color.text }]}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </Text>
+        </View>
+        <Text style={styles.reportLocation}>{report.location}</Text>
+        <View style={styles.reportDetails}>
+          <View style={styles.reportDetail}>
+            <MaterialCommunityIcons name="calendar" size={16} color="#6B7280" />
+            <Text style={styles.reportDetailText}>{report.date}</Text>
+          </View>
+          <View style={styles.reportDetail}>
+            <MaterialCommunityIcons name="recycle" size={16} color="#6B7280" />
+            <Text style={styles.reportDetailText}>{report.type}</Text>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   const renderContent = () => {
@@ -102,23 +146,24 @@ export default function ProfileScreen() {
         );
       default:
         return (
-          <View style={styles.profileContainer}>
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <MaterialCommunityIcons name="star" size={24} color="#34D399" />
-                <Text style={styles.statNumber}>{stats.points}</Text>
-                <Text style={styles.statLabel}>Points</Text>
-              </View>
-              <View style={styles.statCard}>
-                <MaterialCommunityIcons name="camera" size={24} color="#34D399" />
-                <Text style={styles.statNumber}>{stats.photos}</Text>
-                <Text style={styles.statLabel}>Photos</Text>
-              </View>
-              <View style={styles.statCard}>
-                <MaterialCommunityIcons name="earth" size={24} color="#34D399" />
-                <Text style={styles.statNumber}>{stats.impact}</Text>
-                <Text style={styles.statLabel}>Impact</Text>
-              </View>
+          <View style={styles.reportsContainer}>
+            <Text style={styles.totalReports}>
+              Total Reports: {recentReports.total}
+            </Text>
+            
+            <View style={styles.reportsSection}>
+              <Text style={styles.reportsSectionTitle}>Pending Reports</Text>
+              {recentReports.pending.map(report => renderReportCard(report, 'pending'))}
+            </View>
+
+            <View style={styles.reportsSection}>
+              <Text style={styles.reportsSectionTitle}>Completed Reports</Text>
+              {recentReports.done.map(report => renderReportCard(report, 'done'))}
+            </View>
+
+            <View style={styles.reportsSection}>
+              <Text style={styles.reportsSectionTitle}>Canceled Reports</Text>
+              {recentReports.canceled.map(report => renderReportCard(report, 'canceled'))}
             </View>
           </View>
         );
@@ -140,7 +185,10 @@ export default function ProfileScreen() {
             <Text style={styles.avatarEmoji}>🌱</Text>
           </View>
           <Text style={styles.userName}>John Doe</Text>
-          <Text style={styles.userBio}>Eco Warrior | Nature Lover</Text>
+          <View style={styles.pointsContainer}>
+            <MaterialCommunityIcons name="star" size={24} color="#34D399" />
+            <Text style={styles.pointsText}>{stats.points} points</Text>
+          </View>
         </View>
 
         <View style={styles.tabBar}>
@@ -241,11 +289,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
+    marginBottom: 8,
   },
-  userBio: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+  pointsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  pointsText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#34D399',
   },
   tabBar: {
     flexDirection: 'row',
@@ -273,34 +331,63 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#34D399',
   },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  reportsContainer: {
     padding: 20,
-    justifyContent: 'space-between',
   },
-  statCard: {
-    width: '30%',
+  totalReports: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 20,
+  },
+  reportsSection: {
+    marginBottom: 24,
+  },
+  reportsSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginBottom: 12,
+  },
+  reportCard: {
     backgroundColor: 'white',
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginTop: 8,
+  reportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  statLabel: {
-    fontSize: 12,
+  reportStatus: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reportLocation: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  reportDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  reportDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reportDetailText: {
+    marginLeft: 4,
+    fontSize: 14,
     color: '#6B7280',
-    marginTop: 4,
   },
   achievementsContainer: {
     padding: 20,
@@ -352,52 +439,5 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#34D399',
     borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#6B7280',
-    width: 45,
-  },
-  groupContainer: {
-    padding: 20,
-  },
-  groupCard: {
-    backgroundColor: 'white',
-    padding: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  groupEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  groupName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  groupStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  groupStat: {
-    alignItems: 'center',
-  },
-  groupStatNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  groupStatLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
   },
 });
