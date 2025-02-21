@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   Animated,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState('profile');
+
+  const router = useRouter();
 
   const achievements = [
     {
@@ -68,6 +71,35 @@ export default function ProfileScreen() {
       canceled: { bg: '#FEE2E2', text: '#DC2626', icon: 'close-circle-outline' },
     };
     const color = statusColors[status];
+
+
+    const  renderReportCard = (report, status) => {
+      return (
+        <TouchableOpacity 
+          key={report.id} 
+          style={styles.reportCard} 
+          onPress={() => router.push(`../report/${report.id}`)} // Adjust the path based on your structure
+        >
+          <View style={styles.reportHeader}>
+            <MaterialCommunityIcons name={color.icon} size={24} color={color.text} />
+            <Text style={[styles.reportStatus, { color: color.text }]}>
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </Text>
+          </View>
+          <Text style={styles.reportLocation}>{report.location}</Text>
+          <View style={styles.reportDetails}>
+            <View style={styles.reportDetail}>
+              <MaterialCommunityIcons name="calendar" size={16} color="#6B7280" />
+              <Text style={styles.reportDetailText}>{report.date}</Text>
+            </View>
+            <View style={styles.reportDetail}>
+              <MaterialCommunityIcons name="recycle" size={16} color="#6B7280" />
+              <Text style={styles.reportDetailText}>{report.type}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    };
 
     return (
       <View key={report.id} style={styles.reportCard}>
