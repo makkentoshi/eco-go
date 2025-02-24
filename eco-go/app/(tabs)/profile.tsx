@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,8 +14,37 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState('profile');
+  const [profile, setProfile] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+
 
   const router = useRouter();
+  
+  useEffect(() => {
+    fetchVideos();
+  }, []);
+
+  const API_URL =
+  Platform.OS === 'web'
+    ? 'http://localhost:5000/api/profile' 
+    : Platform.OS === 'ios'
+    ? 'http://127.0.0.1:5000/api/profile' // iOS-симулятор
+    : 'http://10.0.2.2:5000/api/profile'; // Android-эмулятор
+
+const fetchVideos = async () => {
+  try {
+    const response = await fetch(API_URL);
+    const data = await response.json();
+    console.log("data", data);
+    setProfile(data);
+  } catch (error) {
+    console.error('Error fetching videos:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const achievements = [
     {
@@ -73,7 +103,7 @@ export default function ProfileScreen() {
     const color = statusColors[status];
 
 
-    const  renderReportCard = (report, status) => {
+    const renderReportCard = (report, status) => {
       return (
         <TouchableOpacity 
           key={report.id} 
@@ -123,6 +153,7 @@ export default function ProfileScreen() {
       </View>
     );
   };
+
 
   const renderContent = () => {
     switch (activeTab) {

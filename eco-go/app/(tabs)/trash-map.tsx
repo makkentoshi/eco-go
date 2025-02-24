@@ -1,15 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Platform
 } from 'react-native';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+
+const [location, setLocation] = useState({ latitude: null, longitude: null });
+
+
+interface LocationState {
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export default function TrashMapScreen() {
+
+
   const reports = [
     {
       id: 1,
@@ -44,7 +58,16 @@ export default function TrashMapScreen() {
       </View>
 
       <View style={styles.mapPlaceholder}>
-        <Text style={styles.mapText}>Map View 🗺️</Text>
+      <MapView
+            style={styles.map}
+            provider={PROVIDER_GOOGLE} 
+            initialRegion={{
+              latitude: location.latitude || 48.8566, // Париж по умолчанию
+              longitude: location.longitude || 2.3522,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            }}
+          />
       </View>
 
       <View style={styles.reportsList}>
@@ -120,6 +143,10 @@ const styles = StyleSheet.create({
   mapText: {
     fontSize: 18,
     color: '#6B7280',
+  },
+  map: {
+    width: '100%',
+    height: '80%',
   },
   reportsList: {
     paddingHorizontal: 20,

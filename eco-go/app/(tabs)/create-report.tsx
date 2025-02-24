@@ -111,21 +111,6 @@ export default function CreateReportScreen() {
     setModalVisible(false);
   };
 
-
-    // const openMapModal = useCallback(() => {
-    //   setIsMapModalVisible(true);
-    // }, []);
-  
-    // const closeMapModal = useCallback(() => {
-    //   setIsMapModalVisible(false);
-    // }, []);
-  
-    // const handleMapLocationSelect = useCallback((newLocation: LocationState) => {
-    //   setLocation(newLocation);
-    //   closeMapModal();
-    // }, [closeMapModal]);
-  
-
   const createFormData = (imageFile: File | null, location: LocationState, description: string): FormData => {
       const formData = new FormData();
 
